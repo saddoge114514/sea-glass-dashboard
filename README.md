@@ -23,15 +23,17 @@
 9. [登录、Cookie 与安全边界](#9-登录cookie-与安全边界)
 10. [运维手册](#10-运维手册)
 11. [排错速查](#11-排错速查)
-12. [接入你自己的业务系统](#12-接入你自己的业务系统)
+12. [接入你自己的业务系统（MaiBot / SnowLuma 实操）](#12-接入你自己的业务系统)
 13. [已知限制](#13-已知限制)
 14. [许可与第三方](#14-许可与第三方)
 
-另有几份独立文档：
+另有三份独立文档，每份都写了「给人看」和「给 AI 执行」两个版本：
 
-- **[部署环境](docs/部署环境.md)** —— 要什么机器、实测过什么
-- **[HTTPS 与证书](docs/HTTPS与证书.md)** —— 自签 / Let's Encrypt / 已有证书三条路，含手机怎么装根证书（给 AI 执行用的版本：[HTTPS与证书-给AI.md](docs/HTTPS与证书-给AI.md)）
-- **[接入 MaiBot / SnowLuma](docs/接入-MaiBot与SnowLuma.md)** —— 怎么把业务数据接进来
+| 主题 | 给人看 | 给 AI 助手执行 |
+|---|---|---|
+| 运行环境（要什么机器、实测过什么） | [部署环境.md](docs/部署环境.md) | ——（内容已压缩进 [AGENTS.md](AGENTS.md) §5） |
+| HTTPS 与证书（自签 / Let's Encrypt / 已有证书） | [HTTPS与证书.md](docs/HTTPS与证书.md) | [HTTPS与证书-给AI.md](docs/HTTPS与证书-给AI.md) |
+| **接入 MaiBot / SnowLuma**（怎么把业务数据接进来） | [接入-MaiBot与SnowLuma.md](docs/接入-MaiBot与SnowLuma.md) | [接入-MaiBot与SnowLuma-给AI.md](docs/接入-MaiBot与SnowLuma-给AI.md) |
 
 ---
 

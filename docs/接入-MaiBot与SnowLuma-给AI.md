@@ -1,5 +1,6 @@
 # 接入 MaiBot + SnowLuma —— 给 AI 的操作手册
 
+> 相关契约：证书 / https 判定与改法见 [HTTPS与证书-给AI.md](HTTPS与证书-给AI.md)；人看的版本见 [接入-MaiBot与SnowLuma.md](接入-MaiBot与SnowLuma.md)。
 > 这份文档写给**执行任务的 AI 助手**（Claude / GPT / 任何 agent），不是给人读的散文。
 > 人版在 [`接入-MaiBot与SnowLuma.md`](接入-MaiBot与SnowLuma.md)，内容等价、表述不同。
 > 仓库自身的规矩在根目录 [`AGENTS.md`](../AGENTS.md)，与本文件冲突时**以 AGENTS.md 为准**。

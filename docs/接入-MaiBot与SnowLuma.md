@@ -1,5 +1,7 @@
 # 把 MaiBot + SnowLuma 接上这块大屏
 
+> 相关：数据接进来了但 `https://` 打不开、手机报不安全 → [HTTPS与证书.md](HTTPS与证书.md)；要让 AI 助手照着改 → [接入-MaiBot与SnowLuma-给AI.md](接入-MaiBot与SnowLuma-给AI.md)。
+
 这份文档解决一件事：**让大屏上那些格子显示你家麦麦（MaiBot）和 SnowLuma 的真实状态**。
 
 大屏本身不认识麦麦，也不调它的 API。它只吃三样东西：

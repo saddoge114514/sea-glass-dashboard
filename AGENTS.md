@@ -18,6 +18,14 @@ auth_gate.py ──写 Cookie──> 浏览器 ──Cookie──> Caddy 的 hea
 
 没有数据库、没有框架、没有 npm 依赖。所有代码都是「改一个文件就能跑」的规模。
 
+**文档入口（动手前先读对应那份）**
+
+| 任务 | 读这份 |
+|---|---|
+| 接业务数据（容器 / 状态文件 / 探活） | [docs/接入-MaiBot与SnowLuma-给AI.md](docs/接入-MaiBot与SnowLuma-给AI.md) |
+| 证书、https 打不开、手机报不安全 | [docs/HTTPS与证书-给AI.md](docs/HTTPS与证书-给AI.md) |
+| 能不能装在这台机上、浏览器版本要求 | [docs/部署环境.md](docs/部署环境.md) |
+
 ---
 
 ## 1. 不许动的六条线（动了就是 bug）
