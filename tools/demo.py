@@ -9,6 +9,7 @@
     python3 tools/demo.py --open         # 顺手打开浏览器
     python3 tools/demo.py --port 9000
     python3 tools/demo.py --data 我的假数据.json
+    python3 tools/demo.py --mood bad     # 看「出事」长什么样（ok / warn / bad / offline 四选一）
 
 为什么不用 `python -m http.server` 了事：Windows 版 Python 把 .svg 映射成
 `image/svg`（少了 +xml），Chromium 直接拒渲染，你会看到「立绘全是破图」——
@@ -115,7 +116,40 @@ def freshen(payload: dict) -> dict:
     return payload
 
 
-def stage(data_path: str, keep_times: bool) -> str:
+def apply_mood(payload: dict, mood: str) -> dict:
+    """把示意数据改成指定的状态，用来看四张状态立绘。
+
+    ok      原样
+    warn    把时间往回拨，触发「数据偏旧」
+    bad     overall=bad + 一条问题 + 一个容器 exited + 备份失败
+    offline 不写 health.json（页面取不到数据就是掉线状态）
+    """
+    import datetime as _dt
+    import time
+
+    if mood == "warn":
+        stale_after = payload.get("stale_after_sec") or 420
+        back = int(stale_after) + 300
+        ts = int(time.time()) - back
+        payload["generated_ts"] = ts
+        payload["generated_at"] = _dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+    elif mood == "bad":
+        payload["overall"] = "bad"
+        payload["problems"] = ["业务容器 没在跑", "备份失败"]
+        cs = payload.get("containers") or []
+        if cs:
+            cs[0]["state"] = "exited"
+            cs[0]["uptime_sec"] = 0
+        if isinstance(payload.get("backup"), dict):
+            payload["backup"]["ok"] = False
+            payload["backup"]["oss"] = "没上传"
+        dsk = payload.get("disk")
+        if isinstance(dsk, dict):
+            dsk["percent"] = 94.2
+    return payload
+
+
+def stage(data_path: str, keep_times: bool, mood: str = "ok") -> str:
     """把 site/ + 示意数据摆进临时目录，返回目录路径。"""
     if not os.path.isfile(data_path):
         raise SystemExit("找不到示意数据：%s" % data_path)
@@ -126,6 +160,7 @@ def stage(data_path: str, keep_times: bool) -> str:
             raise SystemExit("示意数据不是合法 JSON：%s" % e)
     if not keep_times:
         payload = freshen(payload)
+    payload = apply_mood(payload, mood)
 
     tmp = tempfile.mkdtemp(prefix="dash-demo-")
     src = os.path.join(tmp, "status")
@@ -133,8 +168,9 @@ def stage(data_path: str, keep_times: bool) -> str:
     for name in ("dash.html", "config.js"):
         shutil.copy(os.path.join(SITE, name), os.path.join(src, name))
     shutil.copytree(os.path.join(SITE, "assets"), os.path.join(src, "assets"))
-    with open(os.path.join(src, "health.json"), "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=1)
+    if mood != "offline":        # 掉线状态就别放数据了，页面取不到才是真掉线
+        with open(os.path.join(src, "health.json"), "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=1)
     return src
 
 
@@ -145,9 +181,11 @@ def main() -> int:
     ap.add_argument("--open", action="store_true", help="起完自动打开浏览器")
     ap.add_argument("--keep-times", action="store_true",
                     help="原样使用数据里的时间（默认会把时间挪到现在，免得一开就显示“数据陈旧”）")
+    ap.add_argument("--mood", default="ok", choices=["ok", "warn", "bad", "offline"],
+                    help="看哪一状态：ok 正常 / warn 偏旧 / bad 出事 / offline 读不到数据")
     args = ap.parse_args()
 
-    root = stage(args.data, args.keep_times)
+    root = stage(args.data, args.keep_times, args.mood)
     handler = functools.partial(Handler, directory=root)
 
     port = args.port
@@ -161,7 +199,7 @@ def main() -> int:
         raise SystemExit("127.0.0.1:%d 前后 20 个端口都被占了" % args.port)
 
     url = "http://127.0.0.1:%d/dash.html" % port
-    print("演示数据 %s" % os.path.relpath(args.data, ROOT))
+    print("演示数据 %s（状态：%s）" % (os.path.relpath(args.data, ROOT), args.mood))
     print("目录     %s" % root)
     print("地址     %s" % url)
     print("改数据    直接改上面的 JSON，刷新页面即可；Ctrl-C 结束。")

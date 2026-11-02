@@ -97,7 +97,7 @@ docker compose up -d --force-recreate caddy
 `deploy/Caddyfile` 是 `import {$DASH_SITES_GLOB:/etc/caddy/sites/*.caddy}`，
 **glob 一条都没匹配到时 Caddy 会拒绝启动** —— `sites/` 里至少留一个 `.caddy`。
 
-### 4.3 换立绘
+### 4.3 换立绘 / 改状态表现
 
 立绘路径全在 `site/config.js` 的 `assets`（`mascot` / `head` / `deep`）里，
 `dash.html` 通过 `applyArt()` 把它们套到 4 处 `<img>` 和 2 处 CSS 背景上，
@@ -106,6 +106,7 @@ docker compose up -d --force-recreate caddy
 - 默认 `mascot.webp` / `mascot-head.webp` 是第三方同人图（CC BY-NC-SA 4.0，见 `site/assets/LICENSE-art.md`），
   底部 `credit` 的署名是协议要求的，别删；`deep` 默认复用 `mascot.webp`。
 - 回退链：`assets` 里的图 404 → 换成 `mascot.svg` / `mascot-head.svg` → 都失败才隐藏（`applyArt()` 里 `FB`）。
+- **状态表达：任何状态都不许把鲸鱼娘换掉**。状态 = `#sticker` 贴纸（warn `！` / bad `✕` / offline `Zzz`，内联 SVG 写在 `dash.html` 的 `STICKER` 表）+ `body.mood-*` 的滤镜/动画 + 横幅配色。`config.js` 的 `assets.moods` 是可选开关，留空就用 `mascot`；填了以后 `img[data-mood="1"]` 不再叠灰度。
 - `site/assets/mascot-deep.webp`（JerryZRic 的成熟比例版背景）**未标注授权协议，已在 `.gitignore` 里排掉**，
   不要提交，也不要把 `credit` 里的 CC BY-NC-SA 说成覆盖它。
 - `auth_gate.py` 的 `/login-mascot.*` 路由按扩展名探测 MIME，`.svg` / `.png` / `.webp` 都认。
@@ -181,7 +182,7 @@ python3 tools/verify_deploy.py
 Windows 版 Python 的 `mimetypes` 会给成 `image/svg`，Chromium 直接拒渲染，
 你会看到「SVG 全是 0×0」——那不是模板的 bug，是临时服务器的锅。Caddy 给的是对的值。
 
-最快的看法：`python3 tools/demo.py`（它自带正确 MIME，不用起临时服务器）。
+最快的看法：`python3 tools/demo.py`（它自带正确 MIME，不用起临时服务器）；看某一状态用 `--mood ok|warn|bad|offline`。
 
 另外：很多环境下 `prefers-reduced-motion: reduce` 恒为 true，`.sea`/`.swimmer` 会被媒体查询隐藏（设计如此，只停动画）。别误判成「气泡丢了」。
 

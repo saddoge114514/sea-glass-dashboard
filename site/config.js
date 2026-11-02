@@ -24,7 +24,23 @@ window.DASH_CONFIG = {
   assets: {
     mascot: "assets/mascot.webp",
     head: "assets/mascot-head.webp",
-    deep: "assets/mascot.webp"
+    deep: "assets/mascot.webp",
+
+    // 分状态立绘（可选）：留空 = 一直用上面的 mascot（默认就是鲸鱼娘），
+    // 出事时靠右上角的小贴纸（！ / ✕ / Zzz）+ 滤镜表达状态，不会把鲸鱼娘换掉。
+    //   ok      一切正常
+    //   warn    有毛病 / 数据偏旧（黄）
+    //   bad     真出事（红）
+    //   offline 压根读不到 health.json（灰，掉线）
+    // 想给某个状态单独换图，就把路径填上（图自己准备，放 assets/ 或任意同级路径）：
+    //   warn: "assets/mascot-warn.webp"
+    // 不填就用鲸鱼娘 + 贴纸，效果已经够看。
+    moods: {
+      ok: "",
+      warn: "",
+      bad: "",
+      offline: ""
+    }
   },
 
   // 底部署名 / 素材授权说明。留空则不显示这一块。
@@ -53,10 +69,11 @@ window.DASH_CONFIG = {
     eventsTag: "events.log"
   },
 
-  // 看板娘说的话。warn / bad 后面会自动接上具体原因。
+  // 看板娘说的话。warn / bad 后面会自动接上具体原因；offline 是读不到 health.json 时那句。
   mood: {
     ok: "一切正常～",
     warn: "有点小情况",
-    bad: "出事了"
+    bad: "出事了",
+    offline: "连不上采集器"
   }
 };

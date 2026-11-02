@@ -87,10 +87,17 @@
   body.mood-ok   .bubble{border-color:#1f6f3f;color:#c7f0d5}
   body.mood-warn .bubble{border-color:#6b5310;color:#ffe1a3}
   body.mood-bad  .bubble{border-color:#7d2530;color:#ffc9d0}
+  body.mood-offline .bubble{border-color:#4a5568;color:#c8d3e0}
   body.mood-warn .mascot .bob{animation-duration:6.6s}
-  body.mood-warn .mascot img{filter:drop-shadow(0 12px 24px rgba(210,153,34,.30)) saturate(.84) brightness(.96)}
-  body.mood-bad  .mascot img{filter:grayscale(.78) brightness(.9) drop-shadow(0 8px 18px rgba(248,81,73,.28))}
+  /* 状态立绘自己已经表达了情绪，这里只补一点光和色温；
+     data-mood=1 表示这张图是按状态换的，别再加灰度，免得脏。 */
+  body.mood-warn .mascot img{filter:drop-shadow(0 12px 24px rgba(210,153,34,.30)) saturate(.92) brightness(.98)}
+  body.mood-warn .mascot img[data-mood="1"]{filter:drop-shadow(0 12px 24px rgba(210,153,34,.34))}
+  body.mood-bad  .mascot img{filter:grayscale(.72) brightness(.9) drop-shadow(0 8px 18px rgba(248,81,73,.28))}
+  body.mood-bad  .mascot img[data-mood="1"]{filter:drop-shadow(0 8px 18px rgba(248,81,73,.34))}
   body.mood-bad  .mascot .bob{animation:droop 5.6s ease-in-out infinite}
+  body.mood-offline .mascot img{filter:brightness(.94) drop-shadow(0 10px 22px rgba(120,140,170,.26))}
+  body.mood-offline .mascot .bob{animation:bob 9.5s ease-in-out infinite}
 
   /* ---------- 状态横幅 ---------- */
   .banner{position:relative;overflow:hidden;border-radius:14px;padding:20px 16px;text-align:center;
@@ -102,6 +109,9 @@
   .bad{background:linear-gradient(180deg,#a02334,#82192a);color:#ffe3e7}
   .warn{background:linear-gradient(180deg,#6d5409,#5c4708);color:#ffefbe}
   .unk{background:#3a3542;color:#eee}
+  .offline{background:linear-gradient(180deg,#3b465a,#2c3648);color:#dbe6f3}
+  body.mood-offline:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(1200px 700px at 50% 0%,rgba(110,140,180,.12),rgba(110,140,180,0) 70%)}
   body.mood-bad:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
     background:radial-gradient(1200px 700px at 50% 0%,rgba(248,81,73,.13),rgba(248,81,73,0) 68%)}
 
@@ -180,6 +190,17 @@
     background:inherit;border-right:1px solid;border-bottom:1px solid;border-color:inherit;
     transform:rotate(45deg)}
 
+  /* 5.5) 状态贴纸：贴在立绘右上角，只有出事时出现 */
+  .bob{position:relative}
+  .sticker{position:absolute;right:-6px;top:-2px;width:34px;height:34px;display:none}
+  .sticker svg{width:100%;height:100%;display:block;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.45))}
+  body.mood-warn .sticker,body.mood-bad .sticker,body.mood-offline .sticker{
+    display:block;animation:stickerIn .45s ease-out both}
+  @keyframes stickerIn{from{opacity:0;transform:scale(.6) rotate(-12deg)}to{opacity:1;transform:none}}
+  /* 掉线时让贴纸慢慢呼吸，像睡着 */
+  body.mood-offline .sticker{animation:stickerIn .45s ease-out both,bob 5s ease-in-out infinite}
+
   /* 6) 她脚下一小片蓝光，像照着水面 */
   .mascot:after{content:"";position:absolute;left:16%;right:4%;bottom:-6px;height:18px;border-radius:50%;
     background:radial-gradient(50% 50% at 50% 50%,rgba(88,166,255,.30),rgba(88,166,255,0) 70%);
@@ -218,6 +239,7 @@
        否则坏天气/小情况时又会被打回 .07 / .09 —— 等于白改。 */
     body.mood-warn .deep{opacity:.17}
     body.mood-bad  .deep{opacity:.13}
+    body.mood-offline .deep{opacity:.12}
     .surface{height:64px}
     .swimmer{width:104px}
     .swimmer.b{width:84px}
@@ -287,6 +309,8 @@
       <div class="bubble" id="mood">正在下水…</div>
       <div class="bob">
         <img id="whale-img" src="assets/mascot.webp" alt="看板娘" decoding="async">
+        <!-- 状态贴纸：正常时是空的，出事才由 JS 塞进来，鲸鱼娘本身不换 -->
+        <span class="sticker" id="sticker" aria-hidden="true"></span>
       </div>
     </div>
   </div>
@@ -313,7 +337,19 @@ var CFG = Object.assign({
   /* 立绘三件套：主立绘 / 小头像 / 背景那只。
      默认指到 assets 里的鲸鱼娘；想用自带的占位 SVG，把三个值改成
      assets/mascot.svg、assets/mascot-head.svg、assets/mascot.svg 即可。 */
-  assets: { mascot: "assets/mascot.webp", head: "assets/mascot-head.webp", deep: "assets/mascot.webp" },
+  assets: {
+    mascot: "assets/mascot.webp",
+    head: "assets/mascot-head.webp",
+    deep: "assets/mascot.webp",
+    /* 分状态立绘（可选）：留空 = 一直用上面的 mascot，靠贴纸 + 滤镜表达状态。
+       想给某个状态单独换图就填路径；自带四张占位图 mascot-{ok,warn,bad,offline}.svg。 */
+    moods: {
+      ok: "",
+      warn: "",
+      bad: "",
+      offline: ""
+    }
+  },
   labels: {
     containers: "容器",
     containersTag: "docker",
@@ -329,7 +365,7 @@ var CFG = Object.assign({
     events: "最近事件",
     eventsTag: "events.log"
   },
-  mood: { ok: "一切正常～", warn: "有点小情况", bad: "出事了" }
+  mood: { ok: "一切正常～", warn: "有点小情况", bad: "出事了", offline: "连不上采集器" }
 }, (typeof window !== "undefined" && window.DASH_CONFIG) || {});
 
 function applyCfg(){
@@ -354,8 +390,11 @@ function applyCfg(){
 
 /* 立绘：默认是 assets 里的鲸鱼娘（第三方同人图，协议见 assets/LICENSE-art.md）。
    任意一张加载失败就退回同目录的占位 SVG；SVG 也失败才把那只藏起来，不留破图。 */
+var ART = {};
 function applyArt(){
-  var A = Object.assign({mascot:"assets/mascot.webp", head:"assets/mascot-head.webp", deep:"assets/mascot.webp"}, CFG.assets || {});
+  var A = Object.assign({mascot:"assets/mascot.webp", head:"assets/mascot-head.webp", deep:"assets/mascot.webp", moods:{}}, CFG.assets || {});
+  A.moods = Object.assign({ok:"",warn:"",bad:"",offline:""}, A.moods || {});
+  ART = A;
   var FB = {mascot:"assets/mascot.svg", head:"assets/mascot-head.svg", deep:"assets/mascot.svg"};
   function pick(sel, key, hideOnFail){
     [].forEach.call(document.querySelectorAll(sel), function(img){
@@ -367,12 +406,44 @@ function applyArt(){
     });
   }
   document.documentElement.style.setProperty("--mascot-head", 'url("' + A.head + '")');
-  pick("#whale-img", "mascot", true);
+  /* 主立绘单独处理：先按当前状态选图，挂了依次退到主立绘 → 占位 SVG → 藏起来 */
+  var face = document.getElementById("whale-img");
+  if (face) face.addEventListener("error", function(){
+    var step = Number(face.dataset.step || 0);
+    if (step === 0) { face.dataset.step = "1"; face.dataset.mood = "0"; face.src = A.mascot; }
+    else if (step === 1) { face.dataset.step = "2"; face.src = "assets/mascot.svg"; }
+    else { face.parentNode.style.display = "none"; }
+  });
   pick(".swimmer img", "mascot", false);
   pick(".logo", "head", false);
   pick("#deep-img", "deep", false);
 }
 applyCfg();
+
+/* 状态贴纸：鲸鱼娘只有一张图，出什么事就靠这张小贴纸 + 滤镜表达，不换人。 */
+var STICKER = {
+  warn: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#d29922"/>' +
+        '<path d="M20 9v13" stroke="#241a05" stroke-width="4.6" stroke-linecap="round"/>' +
+        '<circle cx="20" cy="29.5" r="2.9" fill="#241a05"/></svg>',
+  bad:  '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#f85149"/>' +
+        '<path d="M13 13l14 14M27 13L13 27" stroke="#2b0d0f" stroke-width="4.4" stroke-linecap="round"/></svg>',
+  offline: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#55657a"/>' +
+        '<text x="9" y="19" font-size="13" font-weight="700" fill="#e6eef8" font-family="Segoe UI,Arial">z</text>' +
+        '<text x="19" y="29" font-size="16" font-weight="700" fill="#e6eef8" font-family="Segoe UI,Arial">Z</text></svg>'
+};
+
+function paintMoodArt(level){
+  var face = document.getElementById("whale-img");
+  var st = document.getElementById("sticker");
+  if (st) st.innerHTML = STICKER[level] || "";
+  if (!face || !ART.mascot) return;
+  var src = (ART.moods && ART.moods[level]) || ART.mascot;
+  if (face.src && face.src.indexOf(src) >= 0 && face.dataset.state === level) return; // 同状态不重设，免得闪
+  face.dataset.state = level;
+  face.dataset.step = "0";
+  face.dataset.mood = (src === ART.mascot) ? "0" : "1";
+  face.src = src;
+}
 
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
@@ -430,6 +501,7 @@ function render(d){
   // 看板娘的表情跟着变
   var mood=moodOf(d,stale);
   document.body.className="mood-"+mood.level;
+  paintMoodArt(mood.level);
   var bub=document.getElementById("mood");
   if(mood.level==="ok"){
     bub.innerHTML="<b>"+esc(CFG.mood.ok)+"</b>";
@@ -539,10 +611,22 @@ function tick(){
     .then(render)
     .catch(function(e){
       var b=document.getElementById("banner");
-      b.className="banner bad";b.textContent="读不到 health.json："+e.message;
-      document.getElementById("sub").textContent="采集器可能还没跑过第一次";
-      document.body.className="mood-bad";
-      document.getElementById("mood").innerHTML="<b>读不到数据</b><br>采集器可能还没跑过";
+      b.className="banner offline";b.textContent="连不上采集器："+e.message;
+      document.getElementById("sub").textContent="health.json 没取到，采集器可能还没跑过第一次";
+      document.body.className="mood-offline";
+      paintMoodArt("offline");
+      document.getElementById("mood").innerHTML="<b>"+esc((CFG.mood&&CFG.mood.offline)||"连不上采集器")+
+        "</b><br>health.json 没取到";
+      // 第一次就取不到时页面是空的，给三条最可能的排查方向，别让人对着一片黑
+      var g=document.getElementById("grid");
+      if(g&&!g.children.length&&!g.dataset.hint){
+        g.dataset.hint="1";
+        g.innerHTML=card("还没数据","仔细看","<div class=\"rows\">"+
+          row("1","采集器跑过没有：<code>python3 collector/health.py</code>")+
+          row("2","输出目录要和 Caddy 的 <code>DASH_STATUS_DIR</code> 是同一个")+
+          row("3","文件名固定是 <code>health.json</code>，别改名")+
+          "</div>");
+      }
     });
 }
 tick();

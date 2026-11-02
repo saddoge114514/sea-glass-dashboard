@@ -59,6 +59,7 @@ python3 tools/demo.py            # 也可以用 py tools/demo.py（Windows）
 | `--port 9000` | 换端口（默认 8080，被占用会自动往后找） |
 | `--open` | 起完自动打开浏览器 |
 | `--keep-times` | 原样使用数据里的时间（默认会把所有时间戳挪到「现在」，否则一开就是「数据陈旧」） |
+| `--mood ok\|warn\|bad\|offline` | 直接看某个状态：正常 / 数据偏旧 / 出事 / 读不到数据（掉线），配合下面 §8 的状态图 |
 
 > 为什么不用 `python -m http.server`：Windows 版 Python 把 `.svg` 认成 `image/svg`（少了 `+xml`），
 > 浏览器直接拒渲染，你会看到「立绘全是破图」——那不是模板的问题。`demo.py` 把 MIME 钉死了。
@@ -375,6 +376,43 @@ assets: {
 `.svg`、把两个 `.webp` 删掉就行。
 
 **用了别人的图，必须在 `config.js` 的 `credit` 里写作者和协议** —— 留空会整块隐藏，等于没署名。
+
+### 状态怎么表达（正常 / 偏旧 / 出事 / 掉线）
+
+看板娘**只有一张图，不会换人**：状态靠「右上角贴纸 + 滤镜 + 横幅配色」表达，鲸鱼娘始终在那。
+
+| 状态 | 什么时候出现 | 贴纸 | 看板娘 | 横幅 |
+|---|---|---|---|---|
+| `ok` | `overall=ok` 且数据新鲜 | 无 | 原色，轻轻浮动 | 绿「一切正常」 |
+| `warn` | 数据偏旧 / 等扫码 / MCP 离线 / 探活失败 / 磁盘 80%+ | 黄色 **！** | 轻微降饱和，浮动变慢 | 黄「正常（数据偏旧）」或列出问题 |
+| `bad` | `overall=bad`：容器没跑、看门狗判非在线、备份失败、磁盘 90%+ | 红色 **✕** | 灰度 + 垂下、地上一圈红光 | 红，列出全部问题 |
+| `offline` | **压根读不到 `health.json`**（采集器没跑、路径不对、HTTP 404） | 灰色 **Zzz** | 变暗、慢呼吸 | 灰蓝「连不上采集器：HTTP xxx」+ 三步排查卡 |
+
+想在自己的机器上挨个看一遍：
+
+```bash
+python3 tools/demo.py --mood ok
+python3 tools/demo.py --mood warn
+python3 tools/demo.py --mood bad
+python3 tools/demo.py --mood offline     # 故意不写 health.json，页面就走掉线状态
+```
+
+**要真给每个状态换不同的图**，`config.js` 里还有个可选项 `assets.moods`（留空=不换）：
+
+```js
+assets: {
+  mascot: "assets/mascot.webp",
+  moods: {
+    ok: "",                            // 空 = 用 mascot（就是鲸鱼娘）
+    warn: "assets/mascot-warn.webp",   // 填了就换成这张
+    bad: "assets/mascot-bad.webp",
+    offline: "assets/mascot-offline.webp"
+  }
+}
+```
+
+填了以后 `data-mood="1"` 会挂在 `<img>` 上，CSS 不再叠灰度（免得换上去的图被染脏）。
+这几张图要你自己准备；没有就全留空，贴纸+滤镜照样能看出状态。
 
 ---
 
