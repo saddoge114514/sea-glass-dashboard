@@ -144,6 +144,8 @@ docker compose up -d --force-recreate caddy
 
 诊断顺序：`ss -lntp | grep 8443` → `curl -vk https://127.0.0.1:8443/login` → `curl --cacert certs/ca.crt …`（不带 `-k` 能过才算证书 OK）→ `openssl s_client` 看 SAN → `verify_deploy.py` 全绿。
 
+执行版（判定四类问题、精确改法、验证顺序、七条禁区、提交前自查）：[`docs/HTTPS与证书-给AI.md`](docs/HTTPS与证书-给AI.md)。
+
 ---
 
 ## 5. 验证：改完必须跑

@@ -30,7 +30,7 @@
 另有几份独立文档：
 
 - **[部署环境](docs/部署环境.md)** —— 要什么机器、实测过什么
-- **[HTTPS 与证书](docs/HTTPS与证书.md)** —— 自签 / Let's Encrypt / 已有证书三条路，含手机怎么装根证书
+- **[HTTPS 与证书](docs/HTTPS与证书.md)** —— 自签 / Let's Encrypt / 已有证书三条路，含手机怎么装根证书（给 AI 执行用的版本：[HTTPS与证书-给AI.md](docs/HTTPS与证书-给AI.md)）
 - **[接入 MaiBot / SnowLuma](docs/接入-MaiBot与SnowLuma.md)** —— 怎么把业务数据接进来
 
 ---
@@ -132,7 +132,8 @@ python3 tools/demo.py            # 也可以用 py tools/demo.py（Windows）
 │  ├─ 部署环境.md                     #   要什么机器、实测过什么、端口目录清单
 │  ├─ 接入-MaiBot与SnowLuma.md        #   人看的：改哪几个文件、每个字段什么意思
 │  ├─ 接入-MaiBot与SnowLuma-给AI.md   #   AI 看的：字段契约、验证顺序、失败对照表
-│  └─ HTTPS与证书.md                  #   自签 / Let's Encrypt / 已有证书，手机怎么装根证书
+│  ├─ HTTPS与证书.md                  #   自签 / Let's Encrypt / 已有证书，手机怎么装根证书
+│  └─ HTTPS与证书-给AI.md             #   AI 看的：四类判定、精确改法、验证顺序、禁区
 ├─ status/                      # 运行期目录：health.json、二维码、事件（不进仓库）
 └─ AGENTS.md                    # 给 AI 助手看的操作说明
 ```
