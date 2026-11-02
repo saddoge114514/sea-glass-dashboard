@@ -1,0 +1,46 @@
+#=====================================================================
+#  可选站点：把另一个只监听本机的面板（QQ 协议端的 WebUI、别的后台…）
+#  也套上同一套 Cookie 登录
+#---------------------------------------------------------------------
+#  启用方法（二选一）：
+#    a) 复制成 sites/alt-site.caddy   → 下次重建容器即生效
+#    b) 在 compose 里把这一个文件单独挂进 sites/
+#       - ./sites-examples/alt-site.caddy:/etc/caddy/sites/alt-site.caddy:ro
+#
+#  改完必须重建容器：docker compose up -d --force-recreate caddy
+#  （admin off 的情况下 `caddy reload` 会失败；单文件 bind-mount 换 inode，
+#   不重建还是旧配置 —— 这两条是最常见的「改了没生效」）
+#
+#  为什么再开一个口：很多面板只监听 127.0.0.1，公网进不来；直接 publish
+#  它自己的端口又不受这套 Cookie 保护。用 Caddy 再开一个 HTTPS 口最省事。
+#
+#  端口提醒：安全组/防火墙要放行 DASH_ALT_PORT。
+#=====================================================================
+:{$DASH_ALT_PORT:8445} {
+	tls {$DASH_CERT_FILE:/etc/caddy/certs/server-fullchain.crt} {$DASH_KEY_FILE:/etc/caddy/certs/server.key}
+	encode zstd gzip
+	log {
+		output file {$DASH_ACCESS_LOG:/var/log/caddy/access.log}
+	}
+
+	# 登录页本身也要能进来，否则被拦下时是一片空白
+	@login path /login /logout /login-mascot.svg /login-mascot.png /login-mascot.webp
+	handle @login {
+		reverse_proxy {$DASH_AUTH_UPSTREAM:127.0.0.1:8766} {
+			header_up X-Original-URI {http.request.uri}
+		}
+	}
+
+	@ok {
+		header Cookie *{$DASH_COOKIE:DashSession}={$DASH_TOKEN:__SET_ME__}*
+	}
+	handle @ok {
+		reverse_proxy {$DASH_ALT_UPSTREAM:127.0.0.1:5099}
+	}
+
+	handle {
+		reverse_proxy {$DASH_AUTH_UPSTREAM:127.0.0.1:8766} {
+			header_up X-Original-URI {http.request.uri}
+		}
+	}
+}

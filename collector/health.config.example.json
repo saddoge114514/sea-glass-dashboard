@@ -1,0 +1,47 @@
+{
+  "_说明": "复制成 health.config.json 再改。所有键都可省略，省略就用 health.py 里的默认值。",
+
+  "status_dir": "/srv/dashboard/status",
+  "data_dir": "/srv/dashboard/data",
+  "timezone_offset_hours": 8,
+  "stale_after_sec": 420,
+
+  "containers": [
+    { "name": "my-app", "label": "应用", "required": true },
+    { "name": "my-app-gateway", "label": "网关", "required": true },
+    { "name": "caddy", "label": "反向代理", "required": false }
+  ],
+
+  "mcp": {
+    "enabled": false,
+    "probe_url": "http://127.0.0.1:8765/healthz",
+    "timeout": 4
+  },
+
+  "probes": [
+    { "name": "gateway", "label": "网关 WebUI", "url": "http://127.0.0.1:5099/", "required": false, "timeout": 4 },
+    { "name": "worker", "label": "另一个后台", "url": "http://127.0.0.1:8000/healthz", "required": false }
+  ],
+
+  "watchdog": {
+    "enabled": true,
+    "state_file": "state.json",
+    "events_file": "events.log",
+    "events_tail": 8,
+    "qr_file": "qr.png"
+  },
+
+  "backup": {
+    "enabled": true,
+    "report_file": "backup.json",
+    "schedule": "每日 04:00"
+  },
+
+  "databases": {
+    "enabled": true,
+    "suffixes": [".db", ".sqlite", ".sqlite3"],
+    "limit": 8
+  },
+
+  "scan_file_cap": 400000
+}

@@ -1,0 +1,37 @@
+[Unit]
+Description=Dashboard login gate (stdlib HTTP, Cookie issuer)
+Documentation=file:///opt/dashboard/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dash
+Group=dash
+WorkingDirectory=/opt/dashboard
+# 配置里是口令哈希和会话令牌，别让别的用户读到（目录 0700 / 文件 0600）
+Environment=DASH_AUTH_CONF=/opt/dashboard/auth/auth.json
+Environment=DASH_AUTH_BIND=127.0.0.1
+Environment=DASH_AUTH_PORT=8766
+Environment=DASH_AUTH_LANDING=/status/dash.html
+Environment=DASH_AUTH_COOKIE=DashSession
+Environment=DASH_AUTH_TITLE=服务器状态大屏
+# 本地用 http 调试时把下面这行打开（会去掉 Cookie 的 Secure），线上别开
+#Environment=DASH_AUTH_INSECURE_COOKIE=1
+
+ExecStart=/usr/bin/python3 /opt/dashboard/auth/auth_gate.py
+Restart=always
+RestartSec=2
+
+# 加固：网关只需要读配置、听本机端口
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/dashboard/auth
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0f16">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="apple-touch-icon" href="assets/favicon.svg">
+<title>服务器状态大屏</title>
+<style>
+  :root{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --bg:#0a0f16; --card:#141b24; --line:#2a3340; --txt:#e6edf3; --dim:#8b949e; --accent:#58a6ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;min-height:100vh;background:var(--bg);color:var(--txt);padding:18px 16px 48px;
+    background-image:
+      radial-gradient(1100px 520px at 18% -12%, rgba(31,111,235,.20) 0%, rgba(31,111,235,0) 62%),
+      radial-gradient(900px 480px at 100% 0%, rgba(88,166,255,.10) 0%, rgba(88,166,255,0) 58%),
+      linear-gradient(180deg,#080d13 0%,#0a1420 38%,#080d13 100%);
+    background-attachment:fixed;
+  }
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em;color:#9ecbff}
+
+  /* ---------- 海底装饰层 ---------- */
+  .sea{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .sea i{
+    position:absolute;bottom:-46px;width:var(--s);height:var(--s);border-radius:50%;
+    background:radial-gradient(circle at 32% 30%,rgba(88,166,255,.30),rgba(88,166,255,.04) 72%);
+    border:1px solid rgba(88,166,255,.14);
+    animation:rise var(--t) linear var(--d) infinite;
+  }
+  @keyframes rise{
+    0%{transform:translate(0,0);opacity:0}
+    12%{opacity:.9}
+    55%{transform:translate(12px,-48vh)}
+    88%{opacity:.45}
+    100%{transform:translate(-10px,-108vh);opacity:0}
+  }
+  /* 从远处慢慢游过的小鲸鱼（默认占位图，换成自己的图就改 assets/mascot.svg） */
+  .swimmer{position:fixed;top:7%;left:-220px;width:150px;z-index:0;opacity:.22;
+    animation:swim 64s linear infinite}
+  .swimmer img{width:100%;height:auto;display:block;animation:bob 6.4s ease-in-out infinite}
+  @keyframes swim{
+    0%{transform:translate(0,0)}
+    50%{transform:translate(calc(50vw + 200px),24px)}
+    100%{transform:translate(calc(100vw + 400px),0)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .sea,.swimmer{display:none}
+    .bob,.mascot img{animation:none!important}
+  }
+
+  .wrap{position:relative;z-index:1;max-width:1000px;margin:0 auto}
+
+  /* ---------- 头部 + 看板娘 ---------- */
+  .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0 0 14px}
+  .hero .t{min-width:0;padding-top:4px}
+  h1{font-size:22px;margin:0 0 5px;letter-spacing:1px;color:#e6edf3}
+  /* 渐变字：万一浏览器不吃 background-clip:text，上面的纯色兜底 */
+  @supports (-webkit-background-clip:text){
+    h1{background:linear-gradient(92deg,#e6edf3 0%,#9ecbff 58%,#58a6ff 100%);
+      -webkit-background-clip:text;background-clip:text;color:transparent}
+  }
+  .sub{color:var(--dim);font-size:13px;margin:0}
+  /* 主立绘按「宽」定尺寸 */
+  .mascot{position:relative;flex:0 0 auto;width:168px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .mascot .bob{width:100%;animation:bob 4.6s ease-in-out infinite}
+  .mascot img{width:100%;height:auto;display:block;
+    filter:drop-shadow(0 12px 24px rgba(31,111,235,.38))}
+  @keyframes bob{
+    0%,100%{transform:translateY(0) rotate(-1.1deg)}
+    50%{transform:translateY(-9px) rotate(1.3deg)}
+  }
+  @keyframes droop{
+    0%,100%{transform:translateY(7px) rotate(3.2deg)}
+    50%{transform:translateY(12px) rotate(5deg)}
+  }
+  .bubble{max-width:230px;text-align:right;background:#0f1a26;border:1px solid var(--line);
+    border-radius:12px;padding:7px 11px;font-size:12px;line-height:1.55;color:#c9d1d9;
+    box-shadow:0 6px 18px rgba(0,0,0,.4)}
+  .bubble b{color:#e6edf3;font-weight:600}
+  body.mood-ok   .bubble{border-color:#1f6f3f;color:#c7f0d5}
+  body.mood-warn .bubble{border-color:#6b5310;color:#ffe1a3}
+  body.mood-bad  .bubble{border-color:#7d2530;color:#ffc9d0}
+  body.mood-warn .mascot .bob{animation-duration:6.6s}
+  body.mood-warn .mascot img{filter:drop-shadow(0 12px 24px rgba(210,153,34,.30)) saturate(.84) brightness(.96)}
+  body.mood-bad  .mascot img{filter:grayscale(.78) brightness(.9) drop-shadow(0 8px 18px rgba(248,81,73,.28))}
+  body.mood-bad  .mascot .bob{animation:droop 5.6s ease-in-out infinite}
+
+  /* ---------- 状态横幅 ---------- */
+  .banner{position:relative;overflow:hidden;border-radius:14px;padding:20px 16px;text-align:center;
+    font-size:26px;font-weight:700;letter-spacing:2px;margin-bottom:16px}
+  .banner:after{ /* 自绘波浪 */
+    content:"";position:absolute;left:-50%;right:-50%;bottom:-14px;height:28px;border-radius:50%;
+    background:rgba(255,255,255,.10);pointer-events:none}
+  .ok{background:linear-gradient(180deg,#12603c,#0f5132);color:#d6fbe7}
+  .bad{background:linear-gradient(180deg,#a02334,#82192a);color:#ffe3e7}
+  .warn{background:linear-gradient(180deg,#6d5409,#5c4708);color:#ffefbe}
+  .unk{background:#3a3542;color:#eee}
+  body.mood-bad:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(1200px 700px at 50% 0%,rgba(248,81,73,.13),rgba(248,81,73,0) 68%)}
+
+  /* ---------- 卡片 ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 8px 22px rgba(0,0,0,.28)}
+  .card h2{font-size:14px;margin:0;padding:12px 16px;color:var(--dim);font-weight:600;
+    border-bottom:1px solid #202834;display:flex;justify-content:space-between;align-items:center}
+  .card h2 span.tag{font-size:11px;color:#6e7681;font-weight:400}
+  .rows{padding:6px 16px 12px}
+  .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;
+    border-bottom:1px dashed #222b36;font-size:14px}
+  .row:last-child{border-bottom:none}
+  .k{color:var(--dim);flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
+  .v{font-variant-numeric:tabular-nums;text-align:right;word-break:break-all;flex:0 1 auto;min-width:0}
+  /* 容器这类「名字很长」的行改成上下两行，免得右边的状态被挤成一列单字 */
+  .crow{display:flex;flex-direction:column;gap:3px;padding:9px 0;
+    border-bottom:1px dashed #222b36;font-size:14px}
+  .crow:last-child{border-bottom:none}
+  .crow .n{color:#c9d1d9;overflow-wrap:anywhere;line-height:1.45}
+  .crow .s{color:var(--dim);font-size:13px;line-height:1.5}
+  pre{white-space:pre-wrap;word-break:break-all;font-size:12px;line-height:1.65;color:#9da7b3;
+    padding:10px 16px 14px;margin:0;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .g{background:#3fb950}.r{background:#f85149}.y{background:#d29922}.x{background:#6e7681}
+  .bar{height:6px;background:#202834;border-radius:3px;overflow:hidden;margin-top:6px}
+  .bar i{display:block;height:100%;background:#3fb950}
+  .bar i.warn{background:#d29922}.bar i.crit{background:#f85149}
+
+  .foot{color:#6e7681;font-size:12px;margin-top:18px;line-height:1.8}
+  .credit{color:#5a6270;font-size:11.5px;line-height:1.75;margin:10px 0 0;
+    border-top:1px solid #1b2230;padding-top:10px}
+
+  /* ---------- 看板娘元素 ---------- */
+  /* 1) 海面：页面顶上一条波浪，像从水下往上看 */
+  .surface{position:fixed;left:0;right:0;top:0;width:100%;height:84px;z-index:0;
+    pointer-events:none;opacity:.85}
+
+  /* 2) 背景里的她：整只立绘站在右侧，慢慢漂 */
+  .deep{position:fixed;right:-6vw;bottom:-13vh;height:72vh;width:auto;z-index:0;
+    pointer-events:none;opacity:.07;
+    filter:blur(3px) drop-shadow(0 0 70px rgba(88,166,255,.30));
+    animation:drift 92s ease-in-out infinite}
+  .deep img{height:100%;width:auto;display:block}
+  @keyframes drift{
+    0%,100%{transform:translate(0,0) rotate(-1.2deg)}
+    50%{transform:translate(-2.5vw,-4vh) rotate(1.2deg)}
+  }
+  body.mood-warn .deep{opacity:.06;
+    filter:blur(2px) drop-shadow(0 0 70px rgba(210,153,34,.30))}
+  body.mood-bad  .deep{opacity:.05;
+    filter:grayscale(.7) brightness(.78) blur(2px) drop-shadow(0 0 70px rgba(248,81,73,.26))}
+
+  /* 3) 底部反向游过的第二只 */
+  .swimmer.b{top:auto;bottom:3%;left:auto;right:-220px;width:120px;opacity:.15;
+    animation:swim2 84s linear infinite}
+  .swimmer.b img{animation-duration:8.2s;animation-delay:-2.4s}
+  @keyframes swim2{
+    0%{transform:translate(0,0)}
+    50%{transform:translate(calc(-50vw - 220px),-20px)}
+    100%{transform:translate(calc(-100vw - 440px),0)}
+  }
+
+  /* 4) 卡片标题前的小头像 */
+  .card h2{
+    padding-left:44px;
+    background-image:var(--mascot-head,url("assets/mascot-head.svg"));
+    background-repeat:no-repeat;background-position:14px center;background-size:22px 22px;
+    transition:background-position .3s ease,background-size .3s ease,color .3s ease}
+  .card:hover h2{color:#9ecbff;background-position:17px center;background-size:26px 26px}
+
+  /* 5) 说话气泡长个小尾巴，指向看板娘 */
+  .bubble{position:relative}
+  .bubble:after{content:"";position:absolute;right:26px;bottom:-6px;width:11px;height:11px;
+    background:inherit;border-right:1px solid;border-bottom:1px solid;border-color:inherit;
+    transform:rotate(45deg)}
+
+  /* 6) 她脚下一小片蓝光，像照着水面 */
+  .mascot:after{content:"";position:absolute;left:16%;right:4%;bottom:-6px;height:18px;border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%,rgba(88,166,255,.30),rgba(88,166,255,0) 70%);
+    filter:blur(4px);pointer-events:none}
+  body.mood-bad .mascot:after{
+    background:radial-gradient(50% 50% at 50% 50%,rgba(248,81,73,.26),rgba(248,81,73,0) 70%)}
+
+  /* 7) 鼠标视差：她会朝你看的方向轻轻歪一下 */
+  .mascot img{transform:translate3d(var(--mx,0),var(--my,0),0) rotate(var(--rot,0deg));
+    transition:transform .4s cubic-bezier(.22,.61,.36,1)}
+
+  /* 8) 标题左边一枚小头像当 logo */
+  .masthead{display:flex;align-items:center;gap:11px;margin:0 0 7px}
+  .masthead h1{margin:0}
+  .logo{width:38px;height:38px;flex:0 0 auto;
+    background:radial-gradient(circle at 50% 38%,#1a2942,#0d1524);
+    border-radius:50%;box-shadow:0 0 0 1px rgba(88,166,255,.28),0 6px 18px rgba(31,111,235,.32);
+    animation:bob 5.2s ease-in-out infinite}
+
+  /* 9) 状态横幅左边，她也在盯着 */
+  .banner{position:relative}
+  .banner:before{content:"";position:absolute;left:22px;top:50%;width:34px;height:34px;
+    transform:translateY(-50%);
+    background:var(--mascot-head,url("assets/mascot-head.svg")) center/contain no-repeat;
+    filter:drop-shadow(0 3px 8px rgba(0,0,0,.5))}
+
+  /* 10) 底部署名旁的小头像 */
+  .credit-ico{width:21px;height:21px;vertical-align:-7px;margin:0 6px 0 0;
+    background:radial-gradient(circle at 50% 38%,#1a2942,#0d1524);border-radius:50%}
+
+  @media (max-width:620px){
+    /* 手机上卡片几乎占满整宽、而且是不透明的，背景那只只有页面顶部的空白处能露出来。
+       原来写的是 .07 + 右下角，等于完全看不见 —— 挪到左上角并调高不透明度。 */
+    .deep{opacity:.20;height:46vh;left:0;right:auto;top:1vh;bottom:auto;filter:blur(1.6px)}
+    /* 上面那两条 body.mood-* 的优先级比 .deep 高，手机上得再盖一次，
+       否则坏天气/小情况时又会被打回 .07 / .09 —— 等于白改。 */
+    body.mood-warn .deep{opacity:.17}
+    body.mood-bad  .deep{opacity:.13}
+    .surface{height:64px}
+    .swimmer{width:104px}
+    .swimmer.b{width:84px}
+    .banner:before{left:12px;width:26px;height:26px}
+    .logo{width:30px;height:30px}
+    .card h2{padding-left:38px;background-position:12px center;background-size:19px 19px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    /* 只停动画，别把画面整个藏掉。.deep 和 .surface 都是静物，
+       原先写成 display:none，结果开了「减弱动态效果」的手机上
+       背景那只彻底消失 —— 这就是"手机看不到立绘"的真凶。 */
+    .deep{animation:none}
+    .swimmer,.swimmer.b{display:none}
+    .logo{animation:none}
+  }
+
+  @media (max-width:620px){
+    body{padding:14px 12px 40px}
+    h1{font-size:19px}
+    /* 手机上别让看板娘和标题抢地方：改成「标题在上、气泡和立绘并排在下」。
+       不这么干的话，168px 宽的立绘列会把标题挤成两行，气泡还会压住副标题。 */
+    .hero{gap:12px;flex-direction:column;align-items:stretch}
+    .mascot{width:100%;flex-direction:row;align-items:center;justify-content:flex-end;gap:12px}
+    .mascot .bob{width:84px;flex:0 0 auto}
+    .bubble{flex:1;max-width:none;text-align:left;font-size:11.5px;padding:7px 10px}
+    .banner{font-size:22px;padding:17px 12px}
+    .grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<svg class="surface" viewBox="0 0 1200 84" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0,46 C150,14 300,78 450,46 C600,14 750,78 900,46 C1050,14 1150,62 1200,42 L1200,0 L0,0 Z"
+        fill="rgba(88,166,255,.075)"/>
+  <path d="M0,56 C150,24 300,88 450,56 C600,24 750,88 900,56 C1050,24 1150,72 1200,52"
+        fill="none" stroke="rgba(88,166,255,.20)" stroke-width="1.4"/>
+</svg>
+<div class="deep" aria-hidden="true">
+  <img id="deep-img" src="assets/mascot.webp" alt="" decoding="async">
+</div>
+
+<div class="sea" aria-hidden="true">
+  <i style="left:5%;--s:9px;--t:22s;--d:0s"></i>
+  <i style="left:14%;--s:15px;--t:31s;--d:6s"></i>
+  <i style="left:26%;--s:6px;--t:18s;--d:11s"></i>
+  <i style="left:38%;--s:12px;--t:27s;--d:3s"></i>
+  <i style="left:52%;--s:8px;--t:24s;--d:15s"></i>
+  <i style="left:64%;--s:17px;--t:35s;--d:8s"></i>
+  <i style="left:76%;--s:7px;--t:20s;--d:19s"></i>
+  <i style="left:88%;--s:13px;--t:29s;--d:1s"></i>
+  <i style="left:95%;--s:5px;--t:16s;--d:13s"></i>
+</div>
+<div class="swimmer" aria-hidden="true"><img src="assets/mascot.webp" alt="" decoding="async"></div>
+<div class="swimmer b" aria-hidden="true"><img src="assets/mascot.webp" alt="" decoding="async"></div>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="t">
+      <div class="masthead">
+        <img class="logo" src="assets/mascot-head.webp" alt="" width="38" height="38" decoding="async">
+        <h1 id="title">服务器状态大屏</h1>
+      </div>
+      <p class="sub" id="sub">加载中…</p>
+    </div>
+    <div class="mascot">
+      <div class="bubble" id="mood">正在下水…</div>
+      <div class="bob">
+        <img id="whale-img" src="assets/mascot.webp" alt="看板娘" decoding="async">
+      </div>
+    </div>
+  </div>
+
+  <div id="banner" class="banner unk">读取中…</div>
+  <div class="grid" id="grid"></div>
+
+  <p class="foot" id="foot">
+    数据来自同目录的 <code>health.json</code>，由服务器上的采集器定时生成。<br>
+    页面每 30 秒自动刷新 · <a href="javascript:location.reload()">立即刷新</a>
+  </p>
+  <p class="credit" id="credit" hidden></p>
+</div>
+
+<script src="config.js"></script>
+<script>
+/* 页面配置：config.js 覆盖默认值。缺 config.js 时用这里的兜底，页面照常能看。 */
+var CFG = Object.assign({
+  title: "服务器状态大屏",
+  refreshMs: 30000,
+  links: [{label:"立即刷新", href:"javascript:location.reload()"}],
+  footer: "数据来自同目录的 health.json，由服务器上的采集器定时生成。",
+  credit: "",
+  /* 立绘三件套：主立绘 / 小头像 / 背景那只。
+     默认指到 assets 里的鲸鱼娘；想用自带的占位 SVG，把三个值改成
+     assets/mascot.svg、assets/mascot-head.svg、assets/mascot.svg 即可。 */
+  assets: { mascot: "assets/mascot.webp", head: "assets/mascot-head.webp", deep: "assets/mascot.webp" },
+  labels: {
+    containers: "容器",
+    containersTag: "docker",
+    watchdog: "看门狗",
+    watchdogTag: "watchdog",
+    host: "主机",
+    hostTag: "/proc",
+    backup: "自动备份",
+    mcp: "联网服务",
+    mcpTag: "MCP",
+    data: "数据",
+    dataTag: "data/",
+    events: "最近事件",
+    eventsTag: "events.log"
+  },
+  mood: { ok: "一切正常～", warn: "有点小情况", bad: "出事了" }
+}, (typeof window !== "undefined" && window.DASH_CONFIG) || {});
+
+function applyCfg(){
+  if (CFG.title) { document.title = CFG.title; document.getElementById("title").textContent = CFG.title; }
+  if (CFG.footer) {
+    var f = document.getElementById("foot");
+    f.innerHTML = CFG.footer + "<br>页面每 " + Math.round((CFG.refreshMs||30000)/1000) + " 秒自动刷新";
+    (CFG.links || []).forEach(function(l){
+      f.appendChild(document.createTextNode(" · "));
+      var a = document.createElement("a");
+      a.href = l.href; a.textContent = l.label;
+      if (/^https?:/i.test(l.href)) { a.target = "_blank"; a.rel = "noopener"; }
+      f.appendChild(a);
+    });
+  }
+  if (CFG.credit) {
+    var c = document.getElementById("credit");
+    c.hidden = false; c.innerHTML = CFG.credit;
+  }
+  applyArt();
+}
+
+/* 立绘：默认是 assets 里的鲸鱼娘（第三方同人图，协议见 assets/LICENSE-art.md）。
+   任意一张加载失败就退回同目录的占位 SVG；SVG 也失败才把那只藏起来，不留破图。 */
+function applyArt(){
+  var A = Object.assign({mascot:"assets/mascot.webp", head:"assets/mascot-head.webp", deep:"assets/mascot.webp"}, CFG.assets || {});
+  var FB = {mascot:"assets/mascot.svg", head:"assets/mascot-head.svg", deep:"assets/mascot.svg"};
+  function pick(sel, key, hideOnFail){
+    [].forEach.call(document.querySelectorAll(sel), function(img){
+      img.addEventListener("error", function(){
+        if (img.dataset.fb !== "1") { img.dataset.fb = "1"; img.src = FB[key]; return; }
+        if (hideOnFail) img.parentNode.style.display = "none";
+      });
+      img.src = A[key];
+    });
+  }
+  document.documentElement.style.setProperty("--mascot-head", 'url("' + A.head + '")');
+  pick("#whale-img", "mascot", true);
+  pick(".swimmer img", "mascot", false);
+  pick(".logo", "head", false);
+  pick("#deep-img", "deep", false);
+}
+applyCfg();
+
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function bytes(n){if(n==null||isNaN(n))return"—";var u=["B","KB","MB","GB","TB"],i=0;n=Number(n);while(n>=1024&&i<u.length-1){n/=1024;i++;}return (i===0?n:n.toFixed(i===1?0:2))+" "+u[i];}
+function dur(sec){if(sec==null||isNaN(sec))return"—";sec=Math.floor(sec);var d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60);if(d)return d+" 天 "+h+" 小时";if(h)return h+" 小时 "+m+" 分";return m+" 分 "+(sec%60)+" 秒";}
+function bar(pct){var cls=pct>=90?"crit":(pct>=75?"warn":"");return '<div class="bar"><i class="'+cls+'" style="width:'+Math.min(100,pct||0)+'%"></i></div>';}
+function row(k,v){return '<div class="row"><span class="k">'+esc(k)+'</span><span class="v">'+v+'</span></div>';}
+function dot(state){
+  var c=state==="running"?"g":(state==="exited"||state==="dead"?"r":(state==="missing"||state==="error"?"r":"x"));
+  return '<span class="dot '+c+'"></span>'+esc(state||"未知");
+}
+function card(title,tag,body){return '<div class="card"><h2>'+esc(title)+(tag?'<span class="tag">'+esc(tag)+'</span>':'')+'</h2>'+body+'</div>';}
+
+/* 看板娘的情绪：由 health.json 里的实际状态推出来，不是随便写的 */
+function moodOf(d,stale){
+  var notes=[],level="ok";
+  function bump(lv,why){ if(lv==="bad"){level="bad";} else if(level!=="bad"){level="warn";} notes.push(why); }
+  if(d.overall!=="ok"){
+    level="bad";
+    notes=notes.concat((d.problems&&d.problems.length)?d.problems:["有异常"]);
+  }
+  var staleAfter = d.stale_after_sec || 420;
+  if(stale>=staleAfter) bump("warn","数据偏旧");
+  var w=d.watchdog||{};
+  if(w.qr) bump("warn","等待扫码");
+  if(w.state&&w.state!=="online") bump("bad","看门狗说没在线");
+  if(w.container_running===false) bump("bad","容器没在跑");
+  var p=d.mcp||{};
+  if(p.ok===false) bump("warn","联网服务离线");
+  (d.probes||[]).forEach(function(x){ if(x.required&&x.ok===false) bump("warn",(x.label||x.name)+" 探不到"); });
+  var b=d.backup||{};
+  if(b.ok===false) bump("bad","备份失败");
+  if(b.oss&&b.oss!=="已上传") bump("warn","备份没上云");
+  var dsk=d.disk||{};
+  if(Number(dsk.percent)>=90) bump("bad","磁盘要满了");
+  else if(Number(dsk.percent)>=80) bump("warn","磁盘偏满");
+  var m=d.mem||{};
+  if(Number(m.percent)>=92) bump("bad","内存吃紧");
+  // 去掉重复说法
+  var seen={},out=[];
+  notes.forEach(function(n){var k=String(n);if(!seen[k]){seen[k]=1;out.push(k);}});
+  return {level:level,notes:out};
+}
+
+function render(d){
+  var L = CFG.labels || {};
+  var banner=document.getElementById("banner");
+  var stale=Math.floor(Date.now()/1000)-d.generated_ts;
+  var staleAfter = d.stale_after_sec || 420;
+  if(d.overall==="ok"&&stale<staleAfter){banner.className="banner ok";banner.textContent="一切正常";}
+  else if(d.overall==="ok"){banner.className="banner warn";banner.textContent="正常（数据偏旧）";}
+  else{banner.className="banner bad";banner.textContent=(d.problems&&d.problems.length)?d.problems.join(" / "):"异常";}
+  document.getElementById("sub").textContent="采集于 "+d.generated_at+"（"+(stale<60?"刚刚":stale+" 秒前")+"）";
+
+  // 看板娘的表情跟着变
+  var mood=moodOf(d,stale);
+  document.body.className="mood-"+mood.level;
+  var bub=document.getElementById("mood");
+  if(mood.level==="ok"){
+    bub.innerHTML="<b>"+esc(CFG.mood.ok)+"</b>";
+  }else if(mood.level==="warn"){
+    bub.innerHTML="<b>"+esc(CFG.mood.warn)+"</b><br>"+esc(mood.notes.join("、"));
+  }else{
+    bub.innerHTML="<b>"+esc(CFG.mood.bad)+"</b><br>"+esc(mood.notes.join("、"));
+  }
+
+  var html="";
+
+  // 容器
+  var cs=(d.containers||[]);
+  if(cs.length){
+    var cbody='<div class="rows">';
+    cs.forEach(function(c){
+      cbody+='<div class="crow"><span class="n">'+esc(c.label||c.name)+" · "+esc(c.image||"")+'</span>'
+           + '<span class="s">'+dot(c.state)
+           + (c.restart_count!=null?" · 重启 "+esc(c.restart_count):"")
+           + " · 已运行 "+esc(dur(c.uptime_sec))+'</span></div>';
+    });
+    cbody+="</div>";
+    html+=card(L.containers||"容器", L.containersTag||"docker", cbody);
+  }
+
+  // 看门狗（采集器没配/没产出就整块不显示）
+  var w=d.watchdog||{};
+  if(Object.keys(w).length){
+    var wbody='<div class="rows">'
+      +row("状态", w.state==="online"?'<span class="dot g"></span>online':('<span class="dot r"></span>'+esc(w.state)))
+      +row("状态开始", esc(w.since))
+      +row("今日掉线", esc(w.down_today))
+      +row("容器运行", w.container_running?"是":"否")
+      +row("等待扫码", w.qr?"是":"否")
+      +"</div>";
+    html+=card(L.watchdog||"看门狗", L.watchdogTag||"watchdog", wbody);
+  }
+
+  // 主机
+  var h=d.host||{},m=d.mem||{},dsk=d.disk||{};
+  var hbody='<div class="rows">'
+    +row("负载 (1/5/15)", esc(h.load1)+" / "+esc(h.load5)+" / "+esc(h.load15)+"  ·  "+esc(h.cpu_count)+" 核")
+    +row("内存", bytes(m.used)+" / "+bytes(m.total)+"（"+esc(m.percent)+"%）"+bar(m.percent))
+    +row("Swap", bytes(m.swap_used)+" / "+bytes(m.swap_total))
+    +row("磁盘", bytes(dsk.used)+" / "+bytes(dsk.total)+"（"+esc(dsk.percent)+"%）"+bar(dsk.percent))
+    +row("运行时长", dur(h.uptime_sec))
+    +row("主机名", esc(h.hostname))
+    +"</div>";
+  html+=card(L.host||"主机", L.hostTag||"/proc", hbody);
+
+  // 备份（有 backup.json 才有内容）
+  var b=d.backup||{};
+  if(Object.keys(b).length){
+    var bbody='<div class="rows">'
+      +row("上次备份", esc(b.last_backup))
+      +row("文件", esc(b.file))
+      +row("大小", bytes(b.size_bytes)+" · "+(b.files!=null?esc(b.files)+" 个文件":""))
+      +row("远端", b.oss==="已上传"?'<span class="dot g"></span>已上传':('<span class="dot y"></span>'+esc(b.oss)))
+      +row("结果", b.ok?'<span class="dot g"></span>成功':'<span class="dot r"></span>失败')
+      +"</div>";
+    html+=card(L.backup||"自动备份", b.schedule||"", bbody);
+  }
+
+  // MCP / 外部探测
+  var p=d.mcp||{};
+  if(!p.disabled){
+    var mbody='<div class="rows">'
+      +row("服务", p.ok?'<span class="dot g"></span>在线（'+esc(p.latency_ms)+' ms）':'<span class="dot x"></span>未部署/离线')
+      +(p.error?row("说明", esc(p.error)):"")
+      +"</div>";
+    html+=card(L.mcp||"联网服务", L.mcpTag||"MCP", mbody);
+  }
+
+  // 其它探活（probes 里配了几条就显示几条）
+  var pr=d.probes||[];
+  if(pr.length){
+    var prbody='<div class="rows">';
+    pr.forEach(function(x){
+      prbody+=row(x.label||x.name, x.ok
+        ? '<span class="dot g"></span>在线（'+esc(x.latency_ms)+' ms）'
+        : '<span class="dot '+(x.required?'r':'x')+'"></span>'+(x.error?esc(x.error):'离线'));
+    });
+    prbody+="</div>";
+    html+=card(L.probes||"探活", L.probesTag||"probes", prbody);
+  }
+
+  // 数据
+  var dbody='<div class="rows">'
+    +row("data/ 占用", bytes(d.data_dir_bytes))
+    +row("二维码", d.qr && d.qr.exists ? esc(d.qr.mtime)+"（"+dur(d.qr.age_sec)+"前）" : "无")
+    +"</div>";
+  if(d.databases&&d.databases.length){
+    dbody+='<pre>'+(d.databases.map(function(x){return esc(x.path)+"   "+bytes(x.size);}).join("\n"))+'</pre>';
+  }
+  html+=card(L.data||"数据", L.dataTag||"data/", dbody);
+
+  // 事件
+  var ev=(d.events||[]);
+  html+=card(L.events||"最近事件", L.eventsTag||"events.log",'<pre>'+(ev.length?esc(ev.join("\n")):"（没有记录）")+'</pre>');
+
+  document.getElementById("grid").innerHTML=html;
+}
+
+function tick(){
+  fetch("health.json?t="+Date.now(),{cache:"no-store"})
+    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+    .then(render)
+    .catch(function(e){
+      var b=document.getElementById("banner");
+      b.className="banner bad";b.textContent="读不到 health.json："+e.message;
+      document.getElementById("sub").textContent="采集器可能还没跑过第一次";
+      document.body.className="mood-bad";
+      document.getElementById("mood").innerHTML="<b>读不到数据</b><br>采集器可能还没跑过";
+    });
+}
+tick();
+setInterval(tick,CFG.refreshMs||30000);
+
+// 看板娘会朝鼠标的方向轻轻歪一下（关掉动画偏好的人不参与）
+if(!window.matchMedia("(prefers-reduced-motion:reduce)").matches){
+  var face=document.getElementById("whale-img");
+  var raf=0;
+  window.addEventListener("mousemove",function(e){
+    if(raf)return;
+    raf=requestAnimationFrame(function(){
+      raf=0;
+      // 以视口中心为原点，换算成 -1..1，再映射到很小的位移和角度
+      var dx=(e.clientX/window.innerWidth-0.5)*2;
+      var dy=(e.clientY/window.innerHeight-0.5)*2;
+      face.style.setProperty("--mx",(dx*5).toFixed(2)+"px");
+      face.style.setProperty("--my",(dy*3).toFixed(2)+"px");
+      face.style.setProperty("--rot",(dx*2.6).toFixed(2)+"deg");
+    });
+  },{passive:true});
+}
+</script>
+</body>
+</html>

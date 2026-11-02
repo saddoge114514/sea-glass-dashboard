@@ -1,0 +1,114 @@
+#=====================================================================
+#  站点 1：状态大屏 + 你的业务后台（同一个端口、同一张 Cookie）
+#---------------------------------------------------------------------
+#  处理顺序就是下面这些 handle 的书写顺序，Caddy 按「首个匹配者胜出」：
+#    1) 登录页 / 退出 / 登录页上的那张图  → 登录网关
+#    2) /ca.crt                          → 根证书（公开，手机要装）
+#    3) /status/** + Cookie              → 状态大屏（file_server）
+#    4) /s/<key>/** 里不认识的深链        → 302 回首页（必须排在 4b 前面）
+#    5) /s/<key>/**  + Cookie            → 大屏的短网址入口
+#    6) 其余 + Cookie                     → 你的业务后台（DASH_APP_UPSTREAM，随便哪个 WebUI）
+#    7) 兜底                              → 没登录就显示登录页
+#
+#  想换成别的后台：改 DASH_APP_UPSTREAM 就行，不用动这个文件。
+#=====================================================================
+:{$DASH_HTTPS_PORT:8443} {
+	tls {$DASH_CERT_FILE:/etc/caddy/certs/server-fullchain.crt} {$DASH_KEY_FILE:/etc/caddy/certs/server.key}
+
+	encode zstd gzip
+
+	# 访问日志（JSON 行），给 fail2ban 看。
+	# 别把这个目录换成 status/：那目录是 file_server 的根，日志会被直接下载走。
+	log {
+		output file {$DASH_ACCESS_LOG:/var/log/caddy/access.log}
+	}
+
+	#------------------------------------------------------------------
+	#  1) 登录页、退出、登录页上那张图：永远放行，交给登录网关
+	#------------------------------------------------------------------
+	@login path /login /logout /login-mascot.svg /login-mascot.png /login-mascot.webp
+	handle @login {
+		reverse_proxy {$DASH_AUTH_UPSTREAM:127.0.0.1:8766} {
+			header_up X-Original-URI {http.request.uri}
+		}
+	}
+
+	#------------------------------------------------------------------
+	#  2) 根证书：公开信息，手机要下载安装，放行
+	#     https://<你的地址>:{port}/ca.crt
+	#------------------------------------------------------------------
+	@ca path /ca.crt
+	handle @ca {
+		root * {$DASH_CERTS_DIR:/etc/caddy/certs}
+		file_server
+	}
+
+	#------------------------------------------------------------------
+	#  3) 状态大屏（可能含登录二维码，必须登录）
+	#     https://<你的地址>:{port}/status/
+	#------------------------------------------------------------------
+	@statusok {
+		header Cookie *{$DASH_COOKIE:DashSession}={$DASH_TOKEN:__SET_ME__}*
+		path /status /status/*
+	}
+	handle @statusok {
+		uri strip_prefix /status
+		root * {$DASH_STATUS_DIR:/srv/dashboard/status}
+		file_server
+	}
+
+	#------------------------------------------------------------------
+	#  4a) 短链下面的「不存在的深链」→ 一律 302 跳回首页
+	#      踩过的坑：手机上从 /s/<key>/dash.html 进来，再点后台里的某个功能，
+	#      浏览器会去求 /s/<key>/plugin-config —— 这条路径下只有大屏那几个
+	#      静态文件，file_server 直接 404，页面就白掉了（看着像"后台打不开"）。
+	#      这里只放行大屏真正用到的文件，其余全部跳回 /，由后面的 @anyok 接管。
+	#      注意：@shortdeep 必须写在 @shortok 前面，否则永远轮不到它。
+	#      index.html / qr.png 故意列进「放行」：它们不能走 302，必须落进
+	#      @shortok 里那条 respond 404 —— 扫码页和二维码不该从短链出去。
+	#------------------------------------------------------------------
+	@shortdeep {
+		path /s/{$DASH_SHORT_KEY:disabled} /s/{$DASH_SHORT_KEY:disabled}/*
+		not path /s/{$DASH_SHORT_KEY:disabled}/dash.html /s/{$DASH_SHORT_KEY:disabled}/config.js /s/{$DASH_SHORT_KEY:disabled}/health.json /s/{$DASH_SHORT_KEY:disabled}/favicon.svg /s/{$DASH_SHORT_KEY:disabled}/assets/* /s/{$DASH_SHORT_KEY:disabled}/index.html /s/{$DASH_SHORT_KEY:disabled}/qr.png
+	}
+	redir @shortdeep / 302
+
+	#------------------------------------------------------------------
+	#  4b) 大屏的「短网址」入口：路径本身是一把钥匙，手机上存书签用
+	#      https://<你的地址>:{port}/s/<key>/dash.html
+	#      路径只是「隐藏门」，不是免口令通道 —— 照样要 Cookie。
+	#      含二维码的那个文件在这条路径下依然 404。
+	#------------------------------------------------------------------
+	@shortok {
+		header Cookie *{$DASH_COOKIE:DashSession}={$DASH_TOKEN:__SET_ME__}*
+		path /s/{$DASH_SHORT_KEY:disabled}/*
+	}
+	handle @shortok {
+		uri strip_prefix /s/{$DASH_SHORT_KEY:disabled}
+		@private path / /index.html /qr.png
+		respond @private 404
+		root * {$DASH_STATUS_DIR:/srv/dashboard/status}
+		file_server
+	}
+
+	#------------------------------------------------------------------
+	#  5) 登录之后的其它一切 → 反代到你的业务后台
+	#     WebSocket 由 Caddy 自动透传
+	#------------------------------------------------------------------
+	@anyok {
+		header Cookie *{$DASH_COOKIE:DashSession}={$DASH_TOKEN:__SET_ME__}*
+		not path /login /logout /login-mascot.svg /login-mascot.png /login-mascot.webp /ca.crt /status /status/* /s/*
+	}
+	handle @anyok {
+		reverse_proxy {$DASH_APP_UPSTREAM:127.0.0.1:8001}
+	}
+
+	#------------------------------------------------------------------
+	#  6) 兜底：没登录（或路径不认识）→ 一律显示登录页
+	#------------------------------------------------------------------
+	handle {
+		reverse_proxy {$DASH_AUTH_UPSTREAM:127.0.0.1:8766} {
+			header_up X-Original-URI {http.request.uri}
+		}
+	}
+}

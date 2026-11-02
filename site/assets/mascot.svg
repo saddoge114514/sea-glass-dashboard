@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320" role="img" aria-label="占位看板娘">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#bfe0ff"/>
+      <stop offset="55%" stop-color="#7cb6ea"/>
+      <stop offset="100%" stop-color="#3f7fbd"/>
+    </linearGradient>
+    <linearGradient id="belly" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#dcecff" stop-opacity="0.86"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#58a6ff" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#58a6ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <ellipse cx="160" cy="300" rx="104" ry="16" fill="url(#glow)"/>
+
+  <!-- 尾鳍 -->
+  <g fill="url(#body)">
+    <path d="M243 196c26-22 44-16 44-16 0 0-12 12-10 22 2 11 14 20 14 20s-20 6-40-6c-12-7-16-14-16-14z" opacity="0.95"/>
+    <path d="M243 200c18 16 24 30 24 30s-18-2-30-12z" opacity="0.8"/>
+  </g>
+
+  <!-- 身体 -->
+  <path d="M158 82c58 0 106 42 109 96 3 54-40 92-104 92S47 232 50 178C53 124 100 82 158 82z" fill="url(#body)"/>
+  <!-- 肚子 -->
+  <path d="M160 118c42 0 78 30 80 70 2 40-32 68-80 68s-82-28-80-68c2-40 38-70 80-70z" fill="url(#belly)" opacity="0.9"/>
+  <!-- 侧鳍 -->
+  <path d="M96 206c-16 10-22 26-18 36 14 2 30-8 38-22z" fill="#4f8fca" opacity="0.9"/>
+  <path d="M224 206c16 10 22 26 18 36-14 2-30-8-38-22z" fill="#4f8fca" opacity="0.9"/>
+
+  <!-- 头顶喷水 -->
+  <path d="M150 78c-4-14 2-26 10-30M170 78c4-14 0-26-8-30" stroke="#9ecbff" stroke-width="5"
+        stroke-linecap="round" fill="none" opacity="0.75"/>
+
+  <!-- 眼睛 -->
+  <g>
+    <ellipse cx="128" cy="166" rx="11.5" ry="14" fill="#12283f"/>
+    <ellipse cx="192" cy="166" rx="11.5" ry="14" fill="#12283f"/>
+    <circle cx="132" cy="161" r="4.2" fill="#ffffff"/>
+    <circle cx="196" cy="161" r="4.2" fill="#ffffff"/>
+    <circle cx="124" cy="172" r="1.9" fill="#ffffff" opacity="0.75"/>
+    <circle cx="188" cy="172" r="1.9" fill="#ffffff" opacity="0.75"/>
+  </g>
+
+  <!-- 腮红 -->
+  <ellipse cx="104" cy="192" rx="15" ry="8" fill="#ff9db4" opacity="0.42"/>
+  <ellipse cx="216" cy="192" rx="15" ry="8" fill="#ff9db4" opacity="0.42"/>
+
+  <!-- 嘴 -->
+  <path d="M148 196c5 6 19 6 24 0" stroke="#25537c" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+</svg>

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the dashboard health collector every 2 minutes
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=2min
+AccuracySec=10s
+# 上一次跑飞了也别堆积
+Unit=dash-health.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,67 @@
+#=====================================================================
+#  用 Docker 跑大屏（Caddy + 登录网关）—— 可选方案
+#---------------------------------------------------------------------
+#  不想在宿主上装 Caddy、又不想改 systemd 的话用这份。
+#
+#  三个必须注意的点：
+#   1) 登录网关**不要**publish 端口。它只该被 Caddy 在内网里访问；
+#      publish 出去等于把登录页直接裸露，绕过了反代这一层。
+#   2) 状态目录用 rw 挂进去：采集器在宿主上写 health.json，Caddy 读它。
+#   3) 日志目录单独挂出来，fail2ban 在**宿主**上读它 ——
+#      容器里的路径（如 /var/log/caddy）在宿主上根本不存在，
+#      fail2ban 配错路径的典型症状是「一直 total failed 0」。
+#
+#  启动：
+#    cp deploy/dashboard.env.example deploy/dashboard.env   # 改里面的令牌
+#    docker compose -f deploy/docker-compose.yml up -d
+#  改了 Caddyfile 之后：
+#    docker compose -f deploy/docker-compose.yml up -d --force-recreate caddy
+#    （admin off ⇒ caddy reload 一定失败；而且单文件 bind-mount 换 inode，
+#      不重建容器就还是旧配置 —— 这条最坑）
+#=====================================================================
+services:
+  auth:
+    image: python:3.12-slim
+    container_name: dash-auth
+    working_dir: /app
+    command: ["python3", "/app/auth_gate.py"]
+    environment:
+      DASH_AUTH_CONF: /app/auth.json
+      DASH_AUTH_BIND: 0.0.0.0
+      DASH_AUTH_PORT: "8766"
+      DASH_AUTH_LANDING: /status/dash.html
+      DASH_AUTH_COOKIE: ${DASH_COOKIE:-DashSession}
+    volumes:
+      - ../auth:/app:ro
+    restart: unless-stopped
+    networks: [dash]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: dash-caddy
+    depends_on: [auth]
+    ports:
+      # 左边是宿主端口（安全组/防火墙放行这个），右边是容器内监听端口，
+      # 要和 Caddyfile 站点地址里的 DASH_HTTPS_PORT 一致。
+      - "${DASH_PUBLISH_PORT:-8443}:${DASH_HTTPS_PORT:-8443}"
+    env_file:
+      - ./dashboard.env
+    environment:
+      # 容器内互相访问用服务名，不用 127.0.0.1
+      DASH_AUTH_UPSTREAM: auth:8766
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # 站点是目录里一个个 .caddy 文件（Caddyfile 用 import 导入整个目录）。
+      # 想开第二个站点（比如把只监听 127.0.0.1 的面板也套上登录），
+      # 把下面那行注释去掉即可 —— 单个文件挂进已挂载的目录，Docker 允许。
+      - ./sites:/etc/caddy/sites:ro
+      # - ./sites-examples/alt-site.caddy:/etc/caddy/sites/alt-site.caddy:ro
+      - ./certs:/etc/caddy/certs:ro
+      - ../status:/srv/dashboard/status:ro
+      - ./logs:/var/log/caddy
+    restart: unless-stopped
+    networks: [dash]
+
+networks:
+  dash:
+    driver: bridge

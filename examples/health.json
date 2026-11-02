@@ -1,0 +1,133 @@
+{
+ "schema": 2,
+ "generated_at": "2026-01-01 12:00:00",
+ "generated_ts": 1767240000,
+ "stale_after_sec": 420,
+ "overall": "ok",
+ "problems": [],
+ "host": {
+  "cpu_count": 2,
+  "uptime_sec": 1123200,
+  "load1": 0.14,
+  "load5": 0.21,
+  "load15": 0.19,
+  "hostname": "example-host"
+ },
+ "disk": {
+  "total": 107374182400,
+  "used": 64424509440,
+  "free": 42949672960,
+  "percent": 60.0
+ },
+ "mem": {
+  "total": 8589934592,
+  "available": 5368709120,
+  "used": 3221225472,
+  "percent": 37.5,
+  "swap_total": 0,
+  "swap_used": 0
+ },
+ "containers": [
+  {
+   "name": "example-app",
+   "label": "业务容器",
+   "required": true,
+   "state": "running",
+   "running": true,
+   "restart_count": 0,
+   "health": null,
+   "image": "example/app:latest",
+   "started_at": "2026-01-01T08:00:00.000000000Z",
+   "uptime_sec": 14400
+  },
+  {
+   "name": "example-gateway",
+   "label": "网关容器",
+   "required": true,
+   "state": "running",
+   "running": true,
+   "restart_count": 2,
+   "health": "healthy",
+   "image": "example/gateway:1.2.3",
+   "started_at": "2026-01-01T09:30:00.000000000Z",
+   "uptime_sec": 9000
+  },
+  {
+   "name": "example-proxy",
+   "label": "反向代理",
+   "required": false,
+   "state": "running",
+   "running": true,
+   "restart_count": 0,
+   "health": null,
+   "image": "caddy:2-alpine",
+   "started_at": "2026-01-01T07:10:00.000000000Z",
+   "uptime_sec": 17400
+  }
+ ],
+ "watchdog": {
+  "state": "online",
+  "since": "2026-01-01 11:12:31",
+  "since_epoch": 1767237151,
+  "duration_sec": 2849,
+  "down_today": 1,
+  "container_running": true,
+  "last_check": "2026-01-01 11:59:45",
+  "qr": false
+ },
+ "backup": {
+  "last_backup": "2026-01-01 04:00:12",
+  "file": "backup-20260101-0400.tar.gz",
+  "size_bytes": 536870912,
+  "files": 128,
+  "oss": "已上传",
+  "ok": true,
+  "schedule": "每日 04:00"
+ },
+ "mcp": {
+  "ok": true,
+  "status": 200,
+  "latency_ms": 7,
+  "body": "{\"ok\": true, \"tools\": [\"web_search\", \"fetch_url\"]}"
+ },
+ "probes": [
+  {
+   "name": "gateway",
+   "label": "网关 WebUI",
+   "required": false,
+   "ok": true,
+   "status": 200,
+   "latency_ms": 11
+  },
+  {
+   "name": "worker",
+   "label": "另一个后台",
+   "required": false,
+   "ok": false,
+   "error": "connection refused"
+  }
+ ],
+ "events": [
+  "2026-01-01 11:59:45  online  容器在跑，WebSocket 在听",
+  "2026-01-01 11:12:31  online  容器在跑，WebSocket 在听",
+  "2026-01-01 10:41:07  offline 容器内端口无人监听，已重启容器",
+  "2026-01-01 10:41:22  online  容器在跑，WebSocket 在听"
+ ],
+ "databases": [
+  {
+   "path": "data/app/message.db",
+   "size": 73400320
+  },
+  {
+   "path": "data/app/emoji.db",
+   "size": 3145728
+  }
+ ],
+ "data_dir_bytes": 2147483648,
+ "qr": {
+  "exists": true,
+  "mtime": "2026-01-01 11:58:02",
+  "age_sec": 118,
+  "size": 8192
+ }
+}

@@ -1,0 +1,31 @@
+# 运行期产物，不该进仓库
+status/*
+!status/.gitkeep
+logs/
+data/
+depends-data/
+certs/
+
+# 口令与令牌（模板文件 *.example 不受影响）
+.env
+*.env
+dashboard.env
+auth/auth.json
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 临时与备份
+*.bak
+*.tmp
+*.swp
+
+# 未标注授权协议的第三方背景图（自己要用才放，别提交）
+site/assets/mascot-deep.webp

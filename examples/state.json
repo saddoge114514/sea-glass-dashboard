@@ -1,0 +1,10 @@
+{
+ "state": "online",
+ "since": "2026-01-01 11:12:31",
+ "since_epoch": 1767237151,
+ "duration_sec": 2849,
+ "down_today": 1,
+ "container_running": true,
+ "last_check": "2026-01-01 11:59:45",
+ "qr": false
+}

@@ -1,0 +1,18 @@
+[Unit]
+Description=Dashboard health collector (writes health.json)
+Documentation=file:///opt/dashboard/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=dash
+Group=dash
+WorkingDirectory=/opt/dashboard
+Environment=DASH_HEALTH_CONFIG=/opt/dashboard/collector/health.config.json
+ExecStart=/usr/bin/python3 /opt/dashboard/collector/health.py
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
