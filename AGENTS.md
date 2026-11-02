@@ -73,6 +73,7 @@ auth_gate.py ──写 Cookie──> 浏览器 ──Cookie──> Caddy 的 hea
 | 立绘 / 头像 / 背景那只 | `site/config.js` 的 `assets`，图放 `site/assets/` | 别在 `dash.html` 写死图片路径；第三方图必须带 `credit` 署名 |
 | 接入业务系统（看哪些容器、探哪些端口） | `collector/health.config.example.json` 的 `containers` / `probes` / `watchdog` / `backup` | 别改 `health.py` 里字段名；契约见 `docs/接入-MaiBot与SnowLuma-给AI.md` §2 |
 | 运行环境/兼容性（能不能装在这台机上） | `docs/部署环境.md` | 那份文档写的是实测值，别把没验过的版本写成「支持」 |
+| 证书 / https 能不能打开 | `deploy/gen_certs.sh`（自签）+ `deploy/dashboard.env.example` 的三行证书变量 | 别把 `ca.key`、`server.key` 提交；SAN 必须含实际访问用的 IP/域名，见 `docs/HTTPS与证书.md` |
 
 ---
 
@@ -129,6 +130,19 @@ docker compose up -d --force-recreate caddy
 
 细节与坑表在 [`docs/接入-MaiBot与SnowLuma.md`](docs/接入-MaiBot与SnowLuma.md)（人看）
 与 [`docs/接入-MaiBot与SnowLuma-给AI.md`](docs/接入-MaiBot与SnowLuma-给AI.md)（字段契约 + 验证顺序 + 失败对照）。
+
+### 4.6 处理证书 / https 的问题
+
+四条硬规矩（违背了页面就是打不开，或者开了也登不进去）：
+
+1. **必须是 https**。网关发的 Cookie 带 `Secure`，http 下浏览器不回收 → 登录 302 回大屏又被打回登录页，看起来像「密码对但进不去」。
+2. **SAN 里要有实际访问用的地址**。用 IP 访问就得把 IP 签进 SAN（`./deploy/gen_certs.sh ./certs 203.0.113.10`），否则是 `ERR_CERT_COMMON_NAME_INVALID`（不是「不受信任」）。
+3. **换地址要重签，但别重生成 CA**。`gen_certs.sh` 见到 `ca.key` 会复用；重生成 CA 等于所有设备要重装 `ca.crt`。
+4. **容器里认的是容器内路径**。`DASH_CERT_FILE` / `DASH_KEY_FILE` / `DASH_CERTS_DIR` 在 Docker 部署下是 `/etc/caddy/certs/...`，写宿主路径会导致 Caddy 起不来（`no such file`）。
+
+要正式证书：有域名就让 Caddy 走 ACME（站点地址改成域名、删 `tls` 行、去掉全局 `auto_https off`），前提是 80 端口可达；已有证书就指向 fullchain（**叶子 + 中间证书，别只给叶子**）。完整决策树、手机装根证书的步骤、12 行症状表都在 `docs/HTTPS与证书.md`。
+
+诊断顺序：`ss -lntp | grep 8443` → `curl -vk https://127.0.0.1:8443/login` → `curl --cacert certs/ca.crt …`（不带 `-k` 能过才算证书 OK）→ `openssl s_client` 看 SAN → `verify_deploy.py` 全绿。
 
 ---
 

@@ -27,7 +27,11 @@
 13. [已知限制](#13-已知限制)
 14. [许可与第三方](#14-许可与第三方)
 
-另有两份独立文档：**[部署环境](docs/部署环境.md)**（要什么机器、实测过什么）与 **[接入 MaiBot / SnowLuma](docs/接入-MaiBot与SnowLuma.md)**（怎么把业务数据接进来）。
+另有几份独立文档：
+
+- **[部署环境](docs/部署环境.md)** —— 要什么机器、实测过什么
+- **[HTTPS 与证书](docs/HTTPS与证书.md)** —— 自签 / Let's Encrypt / 已有证书三条路，含手机怎么装根证书
+- **[接入 MaiBot / SnowLuma](docs/接入-MaiBot与SnowLuma.md)** —— 怎么把业务数据接进来
 
 ---
 
@@ -127,7 +131,8 @@ python3 tools/demo.py            # 也可以用 py tools/demo.py（Windows）
 ├─ docs/                        # 教程与说明（不想读整个 README 就看这几份）
 │  ├─ 部署环境.md                     #   要什么机器、实测过什么、端口目录清单
 │  ├─ 接入-MaiBot与SnowLuma.md        #   人看的：改哪几个文件、每个字段什么意思
-│  └─ 接入-MaiBot与SnowLuma-给AI.md   #   AI 看的：字段契约、验证顺序、失败对照表
+│  ├─ 接入-MaiBot与SnowLuma-给AI.md   #   AI 看的：字段契约、验证顺序、失败对照表
+│  └─ HTTPS与证书.md                  #   自签 / Let's Encrypt / 已有证书，手机怎么装根证书
 ├─ status/                      # 运行期目录：health.json、二维码、事件（不进仓库）
 └─ AGENTS.md                    # 给 AI 助手看的操作说明
 ```
@@ -186,6 +191,8 @@ sudo -u dash DASH_BASE=https://127.0.0.1:8443 DASH_USER=admin DASH_PW='你的口
 ```
 https://<你的地址>:8443/ca.crt      ← 浏览器里直接下载
 ```
+
+装证书的完整步骤（Windows / macOS / Android / iOS / Firefox）、SAN 怎么核对、以及为什么 http 下登录会死循环，单开了一页：**[HTTPS 与证书](docs/HTTPS与证书.md)**。有域名的话那条路更省事 —— Caddy 自己申请 Let's Encrypt，用户端不用装任何东西。
 
 ---
 
@@ -436,6 +443,8 @@ assets: {
 - **日志别放站点根**。放进 `status/` 就等于「访问日志可以被直接下载」。
 
 ### 上线前自查
+
+> 证书这条单独一页：[HTTPS 与证书](docs/HTTPS与证书.md)（含 `ca.key` 别外传、SAN 必须含你访问用的地址）。
 
 ```bash
 # 1) 配置语法
